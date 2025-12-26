@@ -8,6 +8,7 @@ import {
   createJournal,
   deleteJournal,
 } from "../api/journalApi";
+import { encryptText, decryptText } from "../utils/crypto";
 
 const PASSWORD_KEY = "zensoul_journal_password";
 
@@ -71,11 +72,13 @@ export default function Journal() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const newEntry = {
-      title: "Untitled",
-      content: input,
-      mood: "neutral",
-    };
+    const encryptedContent = encryptText(input, getPassword());
+
+const newEntry = {
+  title: "Untitled",
+  content: encryptedContent,
+  mood: "neutral",
+};
 
     createJournal(newEntry)
       .then((saved) => {
@@ -145,11 +148,15 @@ export default function Journal() {
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredEntries = entries.filter(
-    (entry) =>
-      entry.content.toLowerCase().includes(search.toLowerCase()) ||
-      entry.title.toLowerCase().includes(search.toLowerCase())
+  const filteredEntries = entries.filter((entry) => {
+  const decrypted = decryptText(entry.content, getPassword());
+  const searchableText = decrypted || entry.content;
+
+  return (
+    searchableText.toLowerCase().includes(search.toLowerCase()) ||
+    entry.title.toLowerCase().includes(search.toLowerCase())
   );
+});
 
   /* ---------- PASSWORD SCREENS (UNCHANGED) ---------- */
   if (!getPassword()) {
@@ -260,8 +267,12 @@ export default function Journal() {
               <div className="text-xs text-gray-400">
                 {new Date(entry.createdAt).toLocaleString()}
               </div>
-              <div className="my-2">{entry.content}</div>
-
+            <div className="my-2">
+  {(() => {
+    const decrypted = decryptText(entry.content, getPassword());
+    return decrypted || entry.content;
+  })()}
+</div>
               {selectedId === entry._id && (
                 <div className="flex gap-2">
                   <button
